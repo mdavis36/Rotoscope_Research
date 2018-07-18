@@ -40,7 +40,7 @@ using namespace std;
 
 	//int maxTrackbar = 100;
 	//output video codec
-	int codec = CV_FOURCC('M','J','P','G');
+	int codec = VideoWriter::fourcc('M','J','P','G');
 
 
 
@@ -132,8 +132,8 @@ int main(int argc, char** argv){
 	}
 
 	// convert to grayscale
-	cvtColor( image, image_gray, CV_BGR2GRAY );
-	cvtColor( image_back, image_back_gray, CV_BGR2GRAY );
+	cvtColor( image, image_gray, COLOR_BGR2GRAY );
+	cvtColor( image_back, image_back_gray, COLOR_BGR2GRAY );
 
 	if( display_all ){
 		namedWindow("Original Image", WINDOW_AUTOSIZE ); imshow("Original Image", image);
@@ -149,10 +149,10 @@ int main(int argc, char** argv){
 				return -1;
 			}
 		}
-	
+
 		// make difference image
 		absdiff( image, image_back, diff_image );
-		cvtColor( diff_image, diff_image_gray, CV_BGR2GRAY );
+		cvtColor( diff_image, diff_image_gray, COLOR_BGR2GRAY );
 
 		// downsample image
 		downSample(&diff_image_gray, &diff_image_gray_ds, factor, COL, ROW);
@@ -204,7 +204,7 @@ int main(int argc, char** argv){
 		output.write(out);
 
 	}
-	
+
 
 	// display for debugging
 	if( display_all ){
@@ -231,10 +231,10 @@ int loadVideo(char* filename, VideoCapture* video){
 
 
 void getVideoProperties(int debug, VideoCapture* video, double* FPS, double* MAX_TIME, double* start_time, int* MAX_FRAME, int* ROW, int* COL){
-	*FPS = video->get(CV_CAP_PROP_FPS);
-	*MAX_FRAME = video->get(CV_CAP_PROP_FRAME_COUNT);
-	*ROW = video->get(CV_CAP_PROP_FRAME_HEIGHT);
-	*COL = video->get(CV_CAP_PROP_FRAME_WIDTH);
+	*FPS = video->get(CAP_PROP_FPS);
+	*MAX_FRAME = video->get(CAP_PROP_FRAME_COUNT);
+	*ROW = video->get(CAP_PROP_FRAME_HEIGHT);
+	*COL = video->get(CAP_PROP_FRAME_WIDTH);
 	*MAX_TIME = ((double)(*MAX_FRAME))/(*FPS);
 
 	if(debug){
@@ -253,7 +253,7 @@ int initVideoOutput(char* filename, VideoWriter* output, int* ROW, int* COL, dou
 	char name[256];
 	char* extPtr;
 	char* temp;
-	
+
 
 	strcpy(name, filename);
 	temp = strchr(name, '.');
@@ -269,7 +269,7 @@ int initVideoOutput(char* filename, VideoWriter* output, int* ROW, int* COL, dou
 	output->open(name, codec, *FPS, (Size) Size(*COL,*ROW), true);
 
 	if(!output->isOpened()){
-		printf("Failed to open Output Video\n"); 
+		printf("Failed to open Output Video\n");
 		return 0;
 	}
 
@@ -277,8 +277,8 @@ int initVideoOutput(char* filename, VideoWriter* output, int* ROW, int* COL, dou
 	printf("\tHeight = \t%d pixels\n", (int)output->get(CV_CAP_PROP_FRAME_HEIGHT));
 	printf("\tWidth = \t%d pixels\n", (int)output->get(CV_CAP_PROP_FRAME_WIDTH));*/
 	return 1;
-	
-	
+
+
 }
 
 
@@ -317,7 +317,7 @@ int checkEndTime(int debug, char* time, double* start_time, double* end_time, do
 int initImages(VideoCapture* video, Mat* image, Mat* image_back, double back_time, double start_time, double FPS, int* current_frame){
 	if(back_time > 0){
 		*current_frame = back_time*FPS;
-		video->set(CV_CAP_PROP_POS_FRAMES, *current_frame);
+		video->set(CAP_PROP_POS_FRAMES, *current_frame);
 	}
 	video->read(*image_back);
 	if ( !image_back->data ) {
@@ -326,7 +326,7 @@ int initImages(VideoCapture* video, Mat* image, Mat* image_back, double back_tim
 	}
 
 	*current_frame = start_time*FPS;
-	video->set(CV_CAP_PROP_POS_FRAMES, *current_frame);
+	video->set(CAP_PROP_POS_FRAMES, *current_frame);
 	video->read(*image);
 	if ( !image->data ) {
 		printf("No image data \n");
@@ -341,7 +341,7 @@ int getNextImage(int debug, VideoCapture* video, Mat* image, int* current_frame)
 	if(debug){
 		printf("Getting next frame: Frame Number = %d\n", *current_frame);
 	}
-	video->set(CV_CAP_PROP_POS_FRAMES, *current_frame);
+	video->set(CAP_PROP_POS_FRAMES, *current_frame);
 	video->read(*image);
 	if ( !image->data ) {
 		printf("No image data \n");
@@ -367,13 +367,13 @@ void downSample(Mat* image, Mat* image_ds, int factor, int COL, int ROW){
 void GetCenter(vector<Point2f> corners, int* center, int factor){
 	Mat center_vector;
 	int size  = corners.size();
-	reduce(corners, center_vector, 01, CV_REDUCE_AVG);
+	reduce(corners, center_vector, 01, REDUCE_AVG);
 	Point2f mean(
 		center_vector.at<float>(0,0),
 		center_vector.at<float>(0,1)
 		);
 
-	center[0] = (center_vector.at<float>(0,0)) * factor; 
+	center[0] = (center_vector.at<float>(0,0)) * factor;
 	center[1] = (center_vector.at<float>(0,1)) * factor;
 
 	if ( debug ) {
@@ -433,14 +433,14 @@ void waterShed_seg(Mat* diff_image, Mat* markers, int ROW, int COL){
 	// get rid of boundary pixels
 	for(int i = 0; i < ROW; i++){
 		for(int j = 0; j < COL; j++){
-			// check if pixel is labeled as boundary 
+			// check if pixel is labeled as boundary
 			if(markers->at<int>(i,j) == -1){
 				diff = 255*3;
 
 				val[0] = diff_image->at<Vec3b>(i,j)[0];
 				val[1] = diff_image->at<Vec3b>(i,j)[1];
 				val[2] = diff_image->at<Vec3b>(i,j)[2];
-				
+
 				// check points around pixel
 				if(j > 0){
 					// upper left
@@ -600,6 +600,3 @@ void colorPalette(Mat* image, Mat* markers, Mat* out, int color[][4], int maxInd
 		}
 	}
 }
-
-
-
