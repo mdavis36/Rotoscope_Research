@@ -26,8 +26,8 @@ display: $(TARGET)
 debug: $(TARGET)
 
 
-OBJECTS = main.cpp
-HEADERS =
+OBJECTS = main.cpp videoIO.cpp
+HEADERS = videoIO.h
 
 %.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
