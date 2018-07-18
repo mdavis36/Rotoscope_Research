@@ -23,8 +23,7 @@ using namespace std;
 
 
 // debug flags
-	int display_all = 0;
-	int debug = 0;
+	int display_all = 1;
 
 
 // globals
@@ -46,16 +45,16 @@ using namespace std;
 
 //initializing video
 int loadVideo(char* filename, VideoCapture* video);
-void getVideoProperties(int debug, VideoCapture* video, double* FPS, double* MAX_TIME, double* start_time, int* MAX_FRAME, int* ROW, int* COL);
+void getVideoProperties(VideoCapture* video, double* FPS, double* MAX_TIME, double* start_time, int* MAX_FRAME, int* ROW, int* COL);
 int initVideoOutput(char* filename, VideoWriter* output, int* ROW, int* COL, double* FPS);
 
 //validating user input
-int checkStartTime(int debug, char* time, double* start_time, double MAX_TIME);
-int checkEndTime(int debug, char* time, double* start_time, double* end_time, double MAX_TIME);
+int checkStartTime(char* time, double* start_time, double MAX_TIME);
+int checkEndTime(char* time, double* start_time, double* end_time, double MAX_TIME);
 
 //reading video
 int initImages(VideoCapture* video, Mat* image, Mat* image_back, double back_time, double start_time, double FPS, int* current_frame);
-int getNextImage(int debug, VideoCapture* video, Mat* image, int* current_frame);
+int getNextImage(VideoCapture* video, Mat* image, int* current_frame);
 
 //rotoscope functions
 void downSample(Mat* image, Mat* image_ds, int factor, int COL, int ROW);
@@ -67,18 +66,48 @@ void waterShed_seg(Mat* diff_image, Mat* markers, int ROW, int COL);
 void colorPalette(Mat* image, Mat* markers, Mat* out, int color[][4], int maxIndex, int ROW, int COL);
 
 
+void displayCLIargs()
+{
+	printf("usage: Program <Image_Path> <Start_Time>\n");
+	printf("optional usages:\n");
+	printf("\tProgram <Image_Path> <Start_Time> <End_Time>\n");
+	printf("\tProgram <Image_Path> <Start_Time> <End_Time> <Background_Time>\n");
+}
+
 
 int main(int argc, char** argv){
 
-	double 	FPS, MAX_TIME, start_time,
-		end_time, back_time;
-	int 	MAX_FRAME, ROW, COL,
-		current_frame, center[2],color[maxCorners+1][4],
-		end_frame, start_frame;
-	Mat 	image_back, image_back_gray, image,
-		image_gray, diff_image, diff_image_gray,
-		diff_image_gray_ds,corner_image, mask,
-		markers, out;
+	double FPS;
+	double MAX_TIME;
+	double start_time;
+	double end_time;
+	double back_time;
+
+	int MAX_FRAME;
+	int ROW;
+	int COL;
+	int current_frame;
+	int center[2];
+	int color[maxCorners+1][4];
+	int end_frame;
+	int start_frame;
+
+	Mat image_back;
+	Mat image_back_gray;
+	Mat image;
+	Mat image_gray;
+
+	Mat diff_image;
+	Mat diff_image_gray;
+	Mat diff_image_gray_ds;
+
+	Mat corner_image;
+
+	Mat mask;
+	Mat markers;
+
+	Mat out;
+
 	vector<Point2f>	corners, corners_foreground;
 	VideoCapture 	video;
 	VideoWriter	output;
@@ -86,10 +115,7 @@ int main(int argc, char** argv){
 
 	// check input arg
 	if ( argc < 3  || argc > 5) {
-		printf("usage: Program <Image_Path> <Start_Time>\n");
-		printf("optional usages:\n");
-		printf("\tProgram <Image_Path> <Start_Time> <End_Time>\n");
-		printf("\tProgram <Image_Path> <Start_Time> <End_Time> <Background_Time>\n");
+		displayCLIargs();
 		return -1; //exit with error
 	}
 
@@ -99,18 +125,18 @@ int main(int argc, char** argv){
 		return -1; //exit with error
 	}
 
-	getVideoProperties(debug, &video, &FPS, &MAX_TIME, &start_time, &MAX_FRAME, &ROW, &COL); // get local properties for video file
+	getVideoProperties(&video, &FPS, &MAX_TIME, &start_time, &MAX_FRAME, &ROW, &COL); // get local properties for video file
 
 	if( !initVideoOutput(argv[1], &output, &ROW, &COL, &FPS) ){ // open video file
 		return -1; //exit with error
 	}
 
-	if( !checkStartTime(debug, argv[2], &start_time, MAX_TIME) ){ // check user input for start time
+	if( !checkStartTime(argv[2], &start_time, MAX_TIME) ){ // check user input for start time
 		return -1; //exit with error
 	}
 
 	if(argc > 3){
-		if( !checkEndTime(debug, argv[3], &start_time, &end_time, MAX_TIME) ){ // check user input for start time
+		if( !checkEndTime(argv[3], &start_time, &end_time, MAX_TIME) ){ // check user input for start time
 			return -1; //exit with error
 		}
 	} else {
@@ -119,7 +145,7 @@ int main(int argc, char** argv){
 	end_frame = end_time*FPS;
 
 	if(argc > 4){
-		if( !checkStartTime(debug, argv[4], &back_time, MAX_TIME) ){ // check user input for start time
+		if( !checkStartTime(argv[4], &back_time, MAX_TIME) ){ // check user input for start time
 			return -1; //exit with error
 		}
 	} else {
@@ -135,17 +161,17 @@ int main(int argc, char** argv){
 	cvtColor( image, image_gray, COLOR_BGR2GRAY );
 	cvtColor( image_back, image_back_gray, COLOR_BGR2GRAY );
 
-	if( display_all ){
-		namedWindow("Original Image", WINDOW_AUTOSIZE ); imshow("Original Image", image);
-		namedWindow("Gray Background Image", WINDOW_AUTOSIZE ); imshow("Gray Background Image", image_back_gray);
-		namedWindow("Gray Image", WINDOW_AUTOSIZE ); imshow("Gray Image", image_gray);
-		waitKey(0);
-	}
+#ifdef _DISPLAY_ALL
+	namedWindow("Original Image", WINDOW_AUTOSIZE ); imshow("Original Image", image);
+	namedWindow("Gray Background Image", WINDOW_AUTOSIZE ); imshow("Gray Background Image", image_back_gray);
+	namedWindow("Gray Image", WINDOW_AUTOSIZE ); imshow("Gray Image", image_gray);
+	waitKey(0);
+#endif //_DISPLAY_ALL
 
 	for(current_frame = start_frame; current_frame <= end_frame; current_frame++){
 
 		if(current_frame > start_frame){
-			if(!getNextImage(debug, &video, &image, &current_frame)){
+			if(!getNextImage(&video, &image, &current_frame)){
 				return -1;
 			}
 		}
@@ -157,12 +183,12 @@ int main(int argc, char** argv){
 		// downsample image
 		downSample(&diff_image_gray, &diff_image_gray_ds, factor, COL, ROW);
 
-		if( display_all ){
-			namedWindow("Diff Image", WINDOW_AUTOSIZE ); imshow("Diff Image", diff_image);
-			namedWindow("Diff Gray Image", WINDOW_AUTOSIZE ); imshow("Diff Gray Image", diff_image_gray);
-			namedWindow("Diff Gray Image Ds", WINDOW_AUTOSIZE ); imshow("Diff Gray Image Ds", diff_image_gray_ds);
-			waitKey(0);
-		}
+#ifdef _DISPLAY_ALL
+		namedWindow("Diff Image", WINDOW_AUTOSIZE ); imshow("Diff Image", diff_image);
+		namedWindow("Diff Gray Image", WINDOW_AUTOSIZE ); imshow("Diff Gray Image", diff_image_gray);
+		namedWindow("Diff Gray Image Ds", WINDOW_AUTOSIZE ); imshow("Diff Gray Image Ds", diff_image_gray_ds);
+		waitKey(0);
+#endif //_DISPLAY_ALL
 
 		// 1st round corner detection
 		goodFeaturesToTrack(diff_image_gray_ds, corners, maxCorners, qualityLevel, minDistance, Mat(), blockSize, useHarrisDetector, k);
@@ -172,11 +198,11 @@ int main(int argc, char** argv){
 		markers = markers.zeros(ROW,COL,CV_32SC1); //make markers grayscale image
 		DrawFeatures_markers(&markers, corners, factor, 0); // plot markers
 
-		if( display_all ){
-			namedWindow("Corner Image", WINDOW_AUTOSIZE ); imshow("Corner Image", corner_image);
-			namedWindow("Marker Image", WINDOW_AUTOSIZE ); imshow("Marker Image", markers);
-			waitKey(0);
-		}
+#ifdef _DISPLAY_ALL
+		namedWindow("Corner Image", WINDOW_AUTOSIZE ); imshow("Corner Image", corner_image);
+		namedWindow("Marker Image", WINDOW_AUTOSIZE ); imshow("Marker Image", markers);
+		waitKey(0);
+#endif //_DISPLAY_ALL
 
 		/*
 		// 2nd round corner detection
@@ -207,10 +233,10 @@ int main(int argc, char** argv){
 
 
 	// display for debugging
-	if( display_all ){
-		namedWindow("Out Image", WINDOW_AUTOSIZE ); imshow("Out Image", out);
-		waitKey(0);
-	}
+#ifdef _DISPLAY_ALL
+	namedWindow("Out Image", WINDOW_AUTOSIZE ); imshow("Out Image", out);
+	waitKey(0);
+#endif //_DISPLAY_ALL
 
 	// exit porgram
 	return 0;
@@ -230,21 +256,21 @@ int loadVideo(char* filename, VideoCapture* video){
 
 
 
-void getVideoProperties(int debug, VideoCapture* video, double* FPS, double* MAX_TIME, double* start_time, int* MAX_FRAME, int* ROW, int* COL){
+void getVideoProperties(VideoCapture* video, double* FPS, double* MAX_TIME, double* start_time, int* MAX_FRAME, int* ROW, int* COL){
 	*FPS = video->get(CAP_PROP_FPS);
 	*MAX_FRAME = video->get(CAP_PROP_FRAME_COUNT);
 	*ROW = video->get(CAP_PROP_FRAME_HEIGHT);
 	*COL = video->get(CAP_PROP_FRAME_WIDTH);
 	*MAX_TIME = ((double)(*MAX_FRAME))/(*FPS);
 
-	if(debug){
-		printf("\nVideo Properties:\n");
-		printf("\tFPS = \t\t%g fps\n", *FPS);
-		printf("\tMax Frame = \t%d frames\n", *MAX_FRAME);
-		printf("\tMax Time = \t%g sec\n", *MAX_TIME);
-		printf("\tHeight = \t%d pixels\n", *ROW);
-		printf("\tWidth = \t%d pixels\n", *COL);
-	}
+#ifdef _DEBUG
+	printf("\nVideo Properties:\n");
+	printf("\tFPS = \t\t%g fps\n", *FPS);
+	printf("\tMax Frame = \t%d frames\n", *MAX_FRAME);
+	printf("\tMax Time = \t%g sec\n", *MAX_TIME);
+	printf("\tHeight = \t%d pixels\n", *ROW);
+	printf("\tWidth = \t%d pixels\n", *COL);
+#endif //_DEBUG
 }
 
 
@@ -282,7 +308,7 @@ int initVideoOutput(char* filename, VideoWriter* output, int* ROW, int* COL, dou
 }
 
 
-int checkStartTime(int debug, char* time, double* start_time, double MAX_TIME){
+int checkStartTime(char* time, double* start_time, double MAX_TIME){
 	char* err;
 
 	*start_time = strtod(time, &err);
@@ -290,15 +316,16 @@ int checkStartTime(int debug, char* time, double* start_time, double MAX_TIME){
 		printf("\nInvalid Start Time: %s\n", time);
 		return 0;
 	}
-	if(debug){
-		printf("\tStart Time = \t%g sec\n\n", *start_time);
-	}
-	return 1;
+
+#ifdef _DEBUG
+	printf("\tStart Time = \t%g sec\n\n", *start_time);
+#endif //_DEBUG
+
 }
 
 
 
-int checkEndTime(int debug, char* time, double* start_time, double* end_time, double MAX_TIME){
+int checkEndTime(char* time, double* start_time, double* end_time, double MAX_TIME){
 	char* err;
 
 	*end_time = strtod(time, &err);
@@ -306,9 +333,9 @@ int checkEndTime(int debug, char* time, double* start_time, double* end_time, do
 		printf("\nInvalid End Time: %s\n", time);
 		return 0;
 	}
-	if(debug){
-		printf("\tEnd Time = \t%g sec\n\n", *start_time);
-	}
+#ifdef _DEBUG
+	printf("\tEnd Time = \t%g sec\n\n", *start_time);
+#endif //_DEBUG
 	return 1;
 }
 
@@ -337,10 +364,12 @@ int initImages(VideoCapture* video, Mat* image, Mat* image_back, double back_tim
 
 
 
-int getNextImage(int debug, VideoCapture* video, Mat* image, int* current_frame){
-	if(debug){
-		printf("Getting next frame: Frame Number = %d\n", *current_frame);
-	}
+int getNextImage(VideoCapture* video, Mat* image, int* current_frame){
+
+#ifdef _DEBUG
+	printf("Getting next frame: Frame Number = %d\n", *current_frame);
+#endif //_DEBUG
+
 	video->set(CAP_PROP_POS_FRAMES, *current_frame);
 	video->read(*image);
 	if ( !image->data ) {
@@ -376,10 +405,10 @@ void GetCenter(vector<Point2f> corners, int* center, int factor){
 	center[0] = (center_vector.at<float>(0,0)) * factor;
 	center[1] = (center_vector.at<float>(0,1)) * factor;
 
-	if ( debug ) {
-		printf("Number of corners:\t%d\n", size);
-		printf("Centroid:\t\t[%d, %d]\n\n", center[0], center[1]);
-	}
+#ifdef _DEBUG
+	printf("Number of corners:\t%d\n", size);
+	printf("Centroid:\t\t[%d, %d]\n\n", center[0], center[1]);
+#endif //_DEBUG
 }
 
 

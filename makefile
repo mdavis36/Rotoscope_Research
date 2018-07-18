@@ -13,10 +13,18 @@ LIBS = `pkg-config --cflags --libs opencv`
 CC = g++
 CFLAGS = -std=c++11
 
+
 .PHONY: default all clean
 
 default: $(TARGET)
 all: default
+
+display: CC += -D_DISPLAY_ALL
+debug: CC += -D_DEBUG
+
+display: $(TARGET)
+debug: $(TARGET)
+
 
 OBJECTS = main.cpp
 HEADERS =
@@ -27,7 +35,7 @@ HEADERS =
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTS) $(LIBS) -o $@
+	$(CC) $(PFLAGS) $(CFLAGS) $(OBJECTS) $(LIBS) -o $@
 
 clean:
 	-rm -f *.o
