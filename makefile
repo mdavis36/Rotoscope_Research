@@ -19,7 +19,7 @@ CFLAGS = -std=c++11
 default: $(TARGET)
 all: default
 
-display: CC += -D_DISPLAY_ALL
+display: CC += -D_DEBUG -D_DISPLAY_ALL
 debug: CC += -D_DEBUG
 
 display: $(TARGET)
@@ -29,10 +29,10 @@ debug: $(TARGET)
 OBJECTS = main.cpp videoIO.cpp
 HEADERS = videoIO.h
 
-%.o: %.c $(HEADERS)
-	$(CC) $(CFLAGS) -c $< -o $@
+#%.o: %.c $(HEADERS)
+#	$(CC) $(CFLAGS) -c $< -o $@
 
-.PRECIOUS: $(TARGET) $(OBJECTS)
+#.PRECIOUS: $(TARGET) $(OBJECTS)
 
 $(TARGET): $(OBJECTS)
 	$(CC) $(PFLAGS) $(CFLAGS) $(OBJECTS) $(LIBS) -o $@

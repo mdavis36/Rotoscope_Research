@@ -23,11 +23,11 @@ namespace videoIO
 
       #ifdef _DEBUG
       	printf("\nVideo Properties:\n");
-      	printf("\tFPS = \t\t%g fps\n", *FPS);
-      	printf("\tMax Frame = \t%d frames\n", *MAX_FRAME);
-      	printf("\tMax Time = \t%g sec\n", *MAX_TIME);
-      	printf("\tHeight = \t%d pixels\n", *ROW);
-      	printf("\tWidth = \t%d pixels\n", *COL);
+      	printf("\tFPS = \t\t%g fps\n", vi->FPS);
+      	printf("\tMax Frame = \t%d frames\n", vi->MAX_FRAME);
+      	printf("\tMax Time = \t%g sec\n", vi->MAX_TIME);
+      	printf("\tHeight = \t%d pixels\n", vi->ROW);
+      	printf("\tWidth = \t%d pixels\n", vi->COL);
       #endif //_DEBUG
       }
 

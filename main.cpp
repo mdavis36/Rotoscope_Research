@@ -81,7 +81,10 @@ int main(int argc, char** argv){
 
 	if (init(argc, argv, &video, &output, &v_info, &t_info, &image, &image_back) != 0) return -1;
 
-
+	/* OPENCV OPTIMIZATION
+	 * TODO : Implement gpu::cvtColor
+	 * https://docs.opencv.org/2.4/modules/gpu/doc/image_processing.html
+	 */
 	// convert to grayscale
 	cvtColor( image, image_gray, COLOR_BGR2GRAY );
 	cvtColor( image_back, image_back_gray, COLOR_BGR2GRAY );
@@ -103,6 +106,8 @@ int main(int argc, char** argv){
 
 		// make difference image
 		absdiff( image, image_back, diff_image );
+
+		/*OPENCV OPTIMIZATION TODO : same as previos.*/
 		cvtColor( diff_image, diff_image_gray, COLOR_BGR2GRAY );
 
 		// downsample image
@@ -116,6 +121,10 @@ int main(int argc, char** argv){
 #endif //_DISPLAY_ALL
 
 		// 1st round corner detection
+		/*OPENCV OPTIMIZATION
+		 * TODO implement openCV class goodFeauturesto track_GPU
+		 * https://docs.opencv.org/2.4/modules/gpu/doc/video.html
+		 */
 		goodFeaturesToTrack(diff_image_gray_ds, corners, maxCorners, qualityLevel, minDistance, Mat(), blockSize, useHarrisDetector, k);
 		GetCenter(corners, center, factor); // get centroind
 		corner_image = corner_image.zeros(v_info.ROW,v_info.COL,CV_8UC1); //make corner grayscale image
@@ -168,7 +177,10 @@ int main(int argc, char** argv){
 
 //--------------------------------------------------------------------------------------------------------------------
 
-
+/* OPENCV OPTIMIZATION
+ * TODO : Implement gpu::pyrDown function to leverage GPU accelerated downsampling
+ *  https://docs.opencv.org/2.4/modules/gpu/doc/image_processing.html
+ */
 void downSample(Mat* image, Mat* image_ds, int factor, int COL, int ROW){
 	if (factor >= 2) {
 		pyrDown(*image, *image_ds, Size(COL/2, ROW/2));
@@ -185,6 +197,10 @@ void downSample(Mat* image, Mat* image_ds, int factor, int COL, int ROW){
 void GetCenter(vector<Point2f> corners, int* center, int factor){
 	Mat center_vector;
 	int size  = corners.size();
+	/* OPENCV OPTIMIZATION
+	 * TODO implement gpu:: reduce
+	 * https://docs.opencv.org/2.4/modules/gpu/doc/matrix_reductions.html?highlight=gpu%3A%3Areduce#
+	 */
 	reduce(corners, center_vector, 01, REDUCE_AVG);
 	Point2f mean(
 		center_vector.at<float>(0,0),
@@ -201,7 +217,14 @@ void GetCenter(vector<Point2f> corners, int* center, int factor){
 }
 
 
-
+/* POSSIBLE OPTIMIZATION TODO
+ * OpenMP: For this current build of the code we are only performing 1000 operations
+ *         OpenMP parrallelization may be useful.
+ *
+ *  GPU : If all other openCV optimizations are performed we will have an image of GpuMat
+ *  	    Therefore it could be helpful to perform on GPU device with .cu code. Rather than
+ *  	    migrating data back to host.
+ */
 void DrawFeatures_binary(Mat* image, vector<Point2f> corners, int factor) {
 	int size  = corners.size();
 	for (int i = 0; i < size; ++i) {
@@ -211,7 +234,14 @@ void DrawFeatures_binary(Mat* image, vector<Point2f> corners, int factor) {
 }
 
 
-
+/* POSSIBLE OPTIMIZATION TODO
+ * OpenMP: For this current build of the code we are only performing 1000 operations
+ *         OpenMP parrallelization may be useful.
+ *
+ *  GPU : If all other openCV optimizations are performed we will have an image of GpuMat
+ *  	    Therefore it could be helpful to perform on GPU device with .cu code. Rather than
+ *  	    migrating data back to host.
+ */
 void DrawFeatures_markers(Mat* image, vector<Point2f> corners, int factor, int offset) {
 	int size  = corners.size();
 	for (int i = 0; i < size; ++i) {
@@ -223,18 +253,23 @@ void DrawFeatures_markers(Mat* image, vector<Point2f> corners, int factor, int o
 
 
 void waterShed_seg(Mat* diff_image, Mat* markers, int ROW, int COL){
-	int lab = -1, diff, val[3], temp_val[3], temp_diff, temp_lab;
+	int lab = -1, diff, temp_diff, temp_lab;
+	Vec3b val, temp_val;
 	watershed(*diff_image, *markers);
+
 	// get rid of boundary pixels
 	for(int i = 0; i < ROW; i++){
 		for(int j = 0; j < COL; j++){
 			// check if pixel is labeled as boundary
+			/*
+			 *  TODO : profile number of times this if statement is entered compared to size of image
+			 *  Possibly a simple OpenMP implementation, otherwise GPU processing should be used to perform
+			 *  the convolution.
+			 */
 			if(markers->at<int>(i,j) == -1){
 				diff = 255*3;
 
-				val[0] = diff_image->at<Vec3b>(i,j)[0];
-				val[1] = diff_image->at<Vec3b>(i,j)[1];
-				val[2] = diff_image->at<Vec3b>(i,j)[2];
+				val = diff_image->at<Vec3b>(i,j);
 
 				// check points around pixel
 				if(j > 0){
@@ -242,9 +277,7 @@ void waterShed_seg(Mat* diff_image, Mat* markers, int ROW, int COL){
 					if(i > 0){
 						temp_lab = markers->at<int>(i-1,j-1);
 						if(temp_lab > -1){
-							temp_val[0] = diff_image->at<Vec3b>(i-1,j-1)[0];
-							temp_val[1] = diff_image->at<Vec3b>(i-1,j-1)[1];
-							temp_val[2] = diff_image->at<Vec3b>(i-1,j-1)[2];
+							temp_val = diff_image->at<Vec3b>(i-1,j-1);
 							temp_diff = abs(val[0] - temp_val[0]) + abs(val[1] - temp_val[1]) + abs(val[2] - temp_val[2]);
 							if (temp_diff < diff){
 								diff = temp_diff;
@@ -255,9 +288,7 @@ void waterShed_seg(Mat* diff_image, Mat* markers, int ROW, int COL){
 					// above
 					temp_lab = markers->at<int>(i,j-1);
 					if(temp_lab > -1){
-						temp_val[0] = diff_image->at<Vec3b>(i,j-1)[0];
-						temp_val[1] = diff_image->at<Vec3b>(i,j-1)[1];
-						temp_val[2] = diff_image->at<Vec3b>(i,j-1)[2];
+						temp_val = diff_image->at<Vec3b>(i,j-1);
 						temp_diff = abs(val[0] - temp_val[0]) + abs(val[1] - temp_val[1]) + abs(val[2] - temp_val[2]);
 						if (temp_diff < diff){
 							diff = temp_diff;
@@ -268,9 +299,7 @@ void waterShed_seg(Mat* diff_image, Mat* markers, int ROW, int COL){
 					if(i < ROW-1){
 						temp_lab = markers->at<int>(i+1,j-1);
 						if(temp_lab > -1){
-							temp_val[0] = diff_image->at<Vec3b>(i+1,j-1)[0];
-							temp_val[1] = diff_image->at<Vec3b>(i+1,j-1)[1];
-							temp_val[2] = diff_image->at<Vec3b>(i+1,j-1)[2];
+							temp_val = diff_image->at<Vec3b>(i+1,j-1);
 							temp_diff = abs(val[0] - temp_val[0]) + abs(val[1] - temp_val[1]) + abs(val[2] - temp_val[2]);
 							if (temp_diff < diff){
 								diff = temp_diff;
@@ -283,9 +312,7 @@ void waterShed_seg(Mat* diff_image, Mat* markers, int ROW, int COL){
 				if(i > 0){
 					temp_lab = markers->at<int>(i-1,j);
 					if(temp_lab > -1){
-						temp_val[0] = diff_image->at<Vec3b>(i-1,j)[0];
-						temp_val[1] = diff_image->at<Vec3b>(i-1,j)[1];
-						temp_val[2] = diff_image->at<Vec3b>(i-1,j)[2];
+						temp_val = diff_image->at<Vec3b>(i-1,j);
 						temp_diff = abs(val[0] - temp_val[0]) + abs(val[1] - temp_val[1]) + abs(val[2] - temp_val[2]);
 						if (temp_diff < diff){
 							diff = temp_diff;
@@ -297,9 +324,7 @@ void waterShed_seg(Mat* diff_image, Mat* markers, int ROW, int COL){
 				if(i < ROW-1){
 					temp_lab = markers->at<int>(i+1,j);
 					if(temp_lab > -1){
-						temp_val[0] = diff_image->at<Vec3b>(i+1,j)[0];
-						temp_val[1] = diff_image->at<Vec3b>(i+1,j)[1];
-						temp_val[2] = diff_image->at<Vec3b>(i+1,j)[2];
+						temp_val = diff_image->at<Vec3b>(i+1,j);
 						temp_diff = abs(val[0] - temp_val[0]) + abs(val[1] - temp_val[1]) + abs(val[2] - temp_val[2]);
 						temp_lab = markers->at<int>(i+1,j);
 						if (temp_diff < diff){
@@ -313,9 +338,7 @@ void waterShed_seg(Mat* diff_image, Mat* markers, int ROW, int COL){
 					if(i > 0){
 						temp_lab = markers->at<int>(i-1,j+1);
 						if(temp_lab > -1){
-							temp_val[0] = diff_image->at<Vec3b>(i-1,j+1)[0];
-							temp_val[1] = diff_image->at<Vec3b>(i-1,j+1)[1];
-							temp_val[2] = diff_image->at<Vec3b>(i-1,j+1)[2];
+							temp_val = diff_image->at<Vec3b>(i-1,j+1);
 							temp_diff = abs(val[0] - temp_val[0]) + abs(val[1] - temp_val[1]) + abs(val[2] - temp_val[2]);
 							if (temp_diff < diff && temp_lab > -1){
 								diff = temp_diff;
@@ -326,9 +349,7 @@ void waterShed_seg(Mat* diff_image, Mat* markers, int ROW, int COL){
 					// below
 					temp_lab = markers->at<int>(i,j+1);
 					if(temp_lab > -1){
-						temp_val[0] = diff_image->at<Vec3b>(i,j+1)[0];
-						temp_val[1] = diff_image->at<Vec3b>(i,j+1)[1];
-						temp_val[2] = diff_image->at<Vec3b>(i,j+1)[2];
+						temp_val = diff_image->at<Vec3b>(i,j+1);
 						temp_diff = abs(val[0] - temp_val[0]) + abs(val[1] - temp_val[1]) + abs(val[2] - temp_val[2]);
 						if (temp_diff < diff){
 							diff = temp_diff;
@@ -339,9 +360,7 @@ void waterShed_seg(Mat* diff_image, Mat* markers, int ROW, int COL){
 					if(i < ROW-1){
 						temp_lab = markers->at<int>(i+1,j+1);
 						if(temp_lab > -1){
-							temp_val[0] = diff_image->at<Vec3b>(i+1,j+1)[0];
-							temp_val[1] = diff_image->at<Vec3b>(i+1,j+1)[1];
-							temp_val[2] = diff_image->at<Vec3b>(i+1,j+1)[2];
+							temp_val = diff_image->at<Vec3b>(i+1,j+1);
 							temp_diff = abs(val[0] - temp_val[0]) + abs(val[1] - temp_val[1]) + abs(val[2] - temp_val[2]);
 							if (temp_diff < diff && temp_lab > -1){
 								diff = temp_diff;
@@ -368,7 +387,7 @@ void colorPalette(Mat* image, Mat* markers, Mat* out, int color[][4], int maxInd
 		color[i][3] = 0;
 	}
 	for(i = 0; i < ROW; i++ ){
-                for(j = 0; j < COL; j++ ){
+      	for(j = 0; j < COL; j++ ){
 			index = markers->at<int>(i,j);
 			if (index > -1){
 				color[index][3] = color[index][3] + 1;
@@ -385,7 +404,7 @@ void colorPalette(Mat* image, Mat* markers, Mat* out, int color[][4], int maxInd
 		color[i][2] = color[i][2]/index;
 	}
 	for(i = 0; i < ROW; i++ ){
-                for(j = 0; j < COL; j++ ){
+      	for(j = 0; j < COL; j++ ){
 			index = markers->at<int>(i,j);
 			if (index > -1){
 				out->at<Vec3b>(i,j)[0] = color[index][0];
