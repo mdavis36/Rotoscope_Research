@@ -11,7 +11,7 @@
 TARGET = Rotoscope.exe
 LIBS = `pkg-config --cflags --libs opencv`
 CC = g++
-CFLAGS = -std=c++11
+CFLAGS = -std=c++11 -fopenmp
 
 
 .PHONY: default all clean
@@ -26,7 +26,7 @@ display: $(TARGET)
 debug: $(TARGET)
 
 
-OBJECTS = main.cpp videoIO.cpp
+OBJECTS = main.cpp videoIO.cpp SerialRotoscope.cpp timer.cpp Utils.cpp
 HEADERS = videoIO.h
 
 #%.o: %.c $(HEADERS)

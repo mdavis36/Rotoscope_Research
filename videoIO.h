@@ -2,6 +2,8 @@
 #define VIDEOIO_H
 
 #include <opencv2/opencv.hpp>
+#include <stdio.h>
+using namespace std;
 using namespace cv;
 
 //int codec = VideoWriter::fourcc('M','J','P','G');
@@ -26,6 +28,9 @@ namespace videoIO
       	int start_frame;
       	int end_frame;
       } timeInfo ;
+
+      //handleTimeInfo
+      int initTimeInfo(int argc, char** argv, timeInfo *ti, videoInfo *vi);
 
       //initializing video
       int loadVideo(char* filename, VideoCapture* video);

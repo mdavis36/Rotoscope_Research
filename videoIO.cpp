@@ -3,6 +3,47 @@
 namespace videoIO
 {
 
+      int initTimeInfo(int argc, char** argv, timeInfo *ti, videoInfo *vi)
+      {
+            if( !checkStartTime(argv[2], &ti->start_time, vi->MAX_TIME) ){ // check user input for start time
+                  if (string(argv[2]) = string("all"))
+                  {
+                        ti->start_time = 0;
+                        ti->end_frame = vi->MAX_FRAME - 1;
+                  }
+                  else
+                  {
+                        return -1; //exit with error
+                  }
+      	}
+
+      	if(argc > 3){
+      		if( !checkEndTime(argv[3], &ti->start_time, &ti->end_time, vi->MAX_TIME) ){ // check user input for start time
+                        cout << "fasl\n";
+      			return -1; //exit with error
+      		}
+      	} else {
+                  if (string(argv[2]) = string("all"))
+                  {
+                        ti->end_time = vi->MAX_TIME;
+                  }
+                  else
+                  {
+                        ti->end_time = ti->start_time; //only make 1 frame
+                  }
+
+      	}
+
+      	if(argc > 4){
+      		if( !checkStartTime(argv[4], &ti->back_time, vi->MAX_TIME) ){ // check user input for start time
+      			return -1; //exit with error
+      		}
+      	} else {
+      		ti->back_time = 0; //default to first frame
+      	}
+      	ti->end_frame = ti->end_time * vi->FPS - 1;
+      }
+
       int loadVideo(char* filename, VideoCapture* video){
       	video->open(filename);
       	if (!video->isOpened()) {
@@ -21,14 +62,14 @@ namespace videoIO
       	vi->COL = video->get(CAP_PROP_FRAME_WIDTH);
       	vi->MAX_TIME = ((double)(vi->MAX_FRAME))/(vi->FPS);
 
-      #ifdef _DEBUG
+      //#ifdef _DEBUG
       	printf("\nVideo Properties:\n");
       	printf("\tFPS = \t\t%g fps\n", vi->FPS);
       	printf("\tMax Frame = \t%d frames\n", vi->MAX_FRAME);
       	printf("\tMax Time = \t%g sec\n", vi->MAX_TIME);
       	printf("\tHeight = \t%d pixels\n", vi->ROW);
       	printf("\tWidth = \t%d pixels\n", vi->COL);
-      #endif //_DEBUG
+      //#endif //_DEBUG
       }
 
 
@@ -76,6 +117,7 @@ namespace videoIO
       	}
 
       	*current_frame = start_time*FPS;
+            if (*current_frame == 0) *current_frame = 1;
       	video->set(CAP_PROP_POS_FRAMES, *current_frame);
       	video->read(*image);
       	if ( !image->data ) {
@@ -96,7 +138,7 @@ namespace videoIO
       	video->set(CAP_PROP_POS_FRAMES, *current_frame);
       	video->read(*image);
       	if ( !image->data ) {
-      		printf("No image data \n");
+      		cout << "No image data at frame " << *current_frame << endl;
       		return 0;
       	}
       	return 1;
