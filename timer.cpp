@@ -66,15 +66,17 @@ void Timer::calcFinalTime()
 
 void Timer::printFinalTimeData()
 {
+
+      cout << "- " << name <<endl;
       for(auto const & x : times_map)
       {
-            cout << "-------------------------" << endl;
-            cout << "Func Name  : " << x.first << endl;
-            cout << "Accum Time : "<< x.second.acc_time.tv_sec << "." << x.second.acc_time.tv_nsec << endl;
-            cout << "AVG R-Time : ";
+            cout << "\t-------------------------" << endl;
+            cout << "\tFunc Name  : " << x.first << endl;
+            cout << "\tAccum Time : "<< x.second.acc_time.tv_sec << "." << x.second.acc_time.tv_nsec << endl;
+            cout << "\tAVG R-Time : ";
             struct timespec avg = divByInt(x.second.acc_time , x.second.count);
             printf("%lld.%.9ld\n", (long long)avg.tv_sec, avg.tv_nsec);
-            cout << "Call Count : " << x.second.count << endl << endl;
+            cout << "\tCall Count : " << x.second.count << endl << endl;
       }
 }
 

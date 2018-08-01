@@ -4,14 +4,20 @@
 #  OpenCV installed on Ubuntu 16.04 using:
 #  http://www.codebind.com/cpp-tutorial/install-opencv-ubuntu-cpp/
 #
+#  When building OpenCV3 code use cmake flags
+#  WITH_CUDA=ON
+#  ENABLE_FAST_MATH=1
+#  CUDA_FAST_MATH=1
+#  WITH_CUBLAS=1
+#
 #  Created by Michael Davis 7/17/2018
 #
 ###################################################################
 
-TARGET = Rotoscope.exe
+TARGET = OpenCVGPUTest.exe
 LIBS = `pkg-config --cflags --libs opencv`
 CC = g++
-CFLAGS = -std=c++11 -fopenmp
+CFLAGS = -std=c++11
 
 
 .PHONY: default all clean
@@ -19,15 +25,12 @@ CFLAGS = -std=c++11 -fopenmp
 default: $(TARGET)
 all: default
 
-display: CC += -D_DEBUG -D_DISPLAY_ALL
-debug: CC += -D_DEBUG
 
 display: $(TARGET)
-debug: $(TARGET)
 
 
-OBJECTS = main.cpp videoIO.cpp SerialRotoscope.cpp OMPRotoscope.cpp timer.cpp Utils.cpp
-HEADERS = videoIO.h
+OBJECTS = main.cpp
+
 
 #%.o: %.c $(HEADERS)
 #	$(CC) $(CFLAGS) -c $< -o $@
