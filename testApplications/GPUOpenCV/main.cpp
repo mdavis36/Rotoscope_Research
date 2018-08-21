@@ -52,11 +52,48 @@ int main()
 
             cv::Mat h_diff_image, h_diff_image_gray, h_diff_image_gray_ds;
             d_diff_image.download(h_diff_image);
-            d_diff_image_gray.download(h_diff_image_gray);
-            d_diff_image_gray_ds.download(h_diff_image_gray_ds);
-            cv::namedWindow("Diff Image", cv::WINDOW_AUTOSIZE ); cv::imshow("Diff Image", h_diff_image);
-            cv::namedWindow("Diff Gray Image", cv::WINDOW_AUTOSIZE ); cv::imshow("Diff Gray Image", h_diff_image_gray);
-            cv::namedWindow("Diff Gray Image DS", cv::WINDOW_AUTOSIZE ); cv::imshow("Diff Gray Image DS", h_diff_image_gray_ds);
+            // d_diff_image_gray.download(h_diff_image_gray);
+            // d_diff_image_gray_ds.download(h_diff_image_gray_ds);
+            // cv::namedWindow("Diff Image", cv::WINDOW_AUTOSIZE ); cv::imshow("Diff Image", h_diff_image);
+            // cv::namedWindow("Diff Gray Image", cv::WINDOW_AUTOSIZE ); cv::imshow("Diff Gray Image", h_diff_image_gray);
+            // cv::namedWindow("Diff Gray Image DS", cv::WINDOW_AUTOSIZE ); cv::imshow("Diff Gray Image DS", h_diff_image_gray_ds);
+
+            int maxCorners 		= 1000;
+            double qualityLevel 	= 0.000001;
+            double minDistance 	= 1;
+            int blockSize 		= 3;
+            bool useHarrisDetector 	= false;
+            double k 		      = 0.04;
+
+            cv::cuda::GpuMat d_corners(1,maxCorners,CV_32FC2);
+            cv::Ptr<cv::cuda::CornersDetector> cd = cv::cuda::createGoodFeaturesToTrackDetector(CV_8UC1, maxCorners, qualityLevel, minDistance, blockSize, useHarrisDetector, k);
+            cd->detect(d_diff_image_gray_ds, d_corners);
+
+
+
+            // -- Migrate Corner positions back to CPU --
+
+            cv::Mat h_corners;
+            d_corners.download(h_corners);
+
+            cv::Mat marker_image = cv::Mat::zeros(h_image.size(), CV_32SC1);
+            cv::Mat corner_image = cv::Mat::zeros(h_image.size(), CV_8UC1);
+            for (int i = 0; i < h_corners.cols - 1; i++)
+            {
+                  corner_image.at<uchar>(  int(h_corners.at<cv::Vec2f>(i)[1]*2), int(h_corners.at<cv::Vec2f>(i)[0]*2)  ) = 255;
+                  marker_image.at<int>(  int(h_corners.at<cv::Vec2f>(i)[1]*2), int(h_corners.at<cv::Vec2f>(i)[0]*2)  ) = i + 1;
+            }
+
+            cv::cuda::GpuMat d_markers;
+            d_markers.upload(marker_image);
+
+            watershed(h_diff_image, marker_image);
+
+
+
+
+
+            cv::namedWindow("Markers", cv::WINDOW_AUTOSIZE ); cv::imshow("Markers", marker_image);
             cv::waitKey();
 
       }
