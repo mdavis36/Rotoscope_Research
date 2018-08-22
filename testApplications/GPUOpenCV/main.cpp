@@ -4,6 +4,8 @@
 #include <opencv2/cudaarithm.hpp>
 #include <iostream>
 
+#include "water_color.h"
+
 using namespace cv::cuda;
 
 int main()
@@ -84,17 +86,25 @@ int main()
                   marker_image.at<int>(  int(h_corners.at<cv::Vec2f>(i)[1]*2), int(h_corners.at<cv::Vec2f>(i)[0]*2)  ) = i + 1;
             }
 
-            cv::cuda::GpuMat d_markers;
-            d_markers.upload(marker_image);
+            cv::cuda::GpuMat d_marker_image;
+            d_marker_image.upload(marker_image);
 
             watershed(h_diff_image, marker_image);
+            post_water_seg(d_diff_image, d_marker_image);
 
-
-
-
-
-            cv::namedWindow("Markers", cv::WINDOW_AUTOSIZE ); cv::imshow("Markers", marker_image);
+            cv::namedWindow("Markers", cv::WINDOW_AUTOSIZE ); cv::imshow("Markers", corner_image);
             cv::waitKey();
+
+
+            // cv::cuda::GpuMat d_test_out(d_diff_image_gray.size(), CV_8UC1);
+            // do_test(d_diff_image_gray, d_test_out);
+            //
+            // cv::Mat h_test_out;
+            // d_test_out.download(h_test_out);
+            // cv::namedWindow("Test", cv::WINDOW_AUTOSIZE ); cv::imshow("Test", h_test_out);
+            // cv::waitKey();
+
+
 
       }
       catch(const cv::Exception& ex)

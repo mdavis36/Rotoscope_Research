@@ -16,7 +16,7 @@
 
 TARGET = OpenCVGPUTest.exe
 LIBS = `pkg-config --cflags --libs opencv`
-CC = g++
+CC = nvcc
 CFLAGS = -std=c++11
 
 
@@ -29,7 +29,7 @@ all: default
 display: $(TARGET)
 
 
-OBJECTS = main.cpp
+OBJECTS = water_color.cu main.cpp 
 
 
 #%.o: %.c $(HEADERS)
