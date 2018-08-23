@@ -86,13 +86,28 @@ int main()
                   marker_image.at<int>(  int(h_corners.at<cv::Vec2f>(i)[1]*2), int(h_corners.at<cv::Vec2f>(i)[0]*2)  ) = i + 1;
             }
 
+            watershed(h_diff_image, marker_image);
             cv::cuda::GpuMat d_marker_image;
             d_marker_image.upload(marker_image);
 
-            watershed(h_diff_image, marker_image);
+            // -- End of CPU computation --
+
+
+
+
             post_water_seg(d_diff_image, d_marker_image);
 
+
+            cv::cuda::GpuMat d_colors(4, maxCorners, CV_32SC1, cv::Scalar::all(0));
+            cv::cuda::GpuMat d_out(d_image.rows, d_image.cols, CV_8UC3, cv::Scalar::all(255));
+
+
+            color_palette_image(d_image, d_marker_image, d_colors, d_out);
+            cv::Mat h_out;
+            d_out.download(h_out);
+
             cv::namedWindow("Markers", cv::WINDOW_AUTOSIZE ); cv::imshow("Markers", corner_image);
+            cv::namedWindow("Output", cv::WINDOW_AUTOSIZE ); cv::imshow("Output", h_out);
             cv::waitKey();
 
 
