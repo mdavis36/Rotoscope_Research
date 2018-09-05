@@ -1,5 +1,5 @@
 #include "SerialRotoscope.h"
-#include "timer.h"
+
 SerialRotoscope::SerialRotoscope()
 {
 
@@ -57,29 +57,31 @@ int SerialRotoscope::runRotoscope(int argc, char *argv[])
       cout << "start frame : " << t_info.start_frame << endl;
       cout << "end frame   : " << t_info.end_frame << endl;
 
-      double t0, t1;
-      for( int current_frame = t_info.start_frame; current_frame <= t_info.end_frame; current_frame++){
+      Timer s_timer("Serial");
+      s_timer.startTimer("Main_Loop");
 
+      for( int current_frame = t_info.start_frame; current_frame <= t_info.end_frame; current_frame++){
+            s_timer.startTimer("Full_Frame");
             if(current_frame > t_info.start_frame){
                   if(!getNextImage(&video, &image, &current_frame)){
                         return -1;
                   }
             }
-            t0 = getProcessTime();
+
             // make difference image
-
+            s_timer.startTimer("abs_diff");
             absdiff( image, image_back, diff_image );
-
+            s_timer.endTimer("abs_diff");
 
             /*OPENCV OPTIMIZATION TODO : same as previos.*/
-
+            s_timer.startTimer("cvtColor");
             cvtColor( diff_image, diff_image_gray, COLOR_BGR2GRAY );
-
+            s_timer.endTimer("cvtColor");
 
             // downsample image
-
+            s_timer.startTimer("downSample");
             downSample(&diff_image_gray, &diff_image_gray_ds, factor, v_info.COL, v_info.ROW);
-
+            s_timer.endTimer("downSample");
 
 #ifdef _DISPLAY_ALL
             namedWindow("Diff Image", WINDOW_AUTOSIZE ); imshow("Diff Image", diff_image);
@@ -93,25 +95,25 @@ int SerialRotoscope::runRotoscope(int argc, char *argv[])
              * TODO implement openCV class goodFeauturesto track_GPU
              * https://docs.opencv.org/2.4/modules/gpu/doc/video.html
              */
-
+            s_timer.startTimer("goodFeatureToTrack");
             goodFeaturesToTrack(diff_image_gray_ds, corners, maxCorners, qualityLevel, minDistance, Mat(), blockSize, useHarrisDetector, k);
+            s_timer.endTimer("goodFeatureToTrack");
 
-
-
+            s_timer.startTimer("GetCenter");
             GetCenter(corners, center, factor); // get centroind
-
+            s_timer.endTimer("GetCenter");
 
             corner_image = corner_image.zeros(v_info.ROW,v_info.COL,CV_8UC1); //make corner grayscale image
 
-
+            s_timer.startTimer("DrawFeatures_binary");
             DrawFeatures_binary(&corner_image, corners, factor); // plot corners
-
+            s_timer.endTimer("DrawFeatures_binary");
 
             markers = markers.zeros(v_info.ROW,v_info.COL,CV_32SC1); //make markers grayscale image
 
-
+            s_timer.startTimer("DrawFeatures_markers");
             DrawFeatures_markers(&markers, corners, factor, 0); // plot markers
-
+            s_timer.endTimer("DrawFeatures_markers");
 
 #ifdef _DISPLAY_ALL
             namedWindow("Corner Image", WINDOW_AUTOSIZE ); imshow("Corner Image", corner_image);
@@ -120,32 +122,29 @@ int SerialRotoscope::runRotoscope(int argc, char *argv[])
 #endif //_DISPLAY_ALL
 
             // watershed segmentation
-
+            s_timer.startTimer("waterShed_seg");
             waterShed_seg(&diff_image, &markers, v_info.ROW, v_info.COL);
-
+            s_timer.endTimer("waterShed_seg");
 
             // calculate average color
             out = out.zeros(v_info.ROW,v_info.COL,CV_8UC3); // make output color image
 
-
+            s_timer.startTimer("colorPalette");
             colorPalette(&image, &markers, &out, color, maxCorners+1, v_info.ROW, v_info.COL); // apply color
-
+            s_timer.endTimer("colorPalette");
 
             output.write(out);
-            t1 = getProcessTime();
-
-            std::cout << "CPU Frame time : " << t1 - t0 << " seconds" << std::endl;
-            namedWindow("Out Image", WINDOW_AUTOSIZE ); imshow("Out Image", out);
-            waitKey(0);
+            s_timer.endTimer("Full_Frame");
       }
+      s_timer.endTimer("Main_Loop");
 
-
-
+      s_timer.printFinalTimeData();
 
       // display for debugging
-//#ifdef _DISPLAY_ALL
-
-//#endif //_DISPLAY_ALL
+#ifdef _DISPLAY_ALL
+      namedWindow("Out Image", WINDOW_AUTOSIZE ); imshow("Out Image", out);
+      waitKey(0);
+#endif //_DISPLAY_ALL
 }
 
 

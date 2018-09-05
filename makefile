@@ -26,7 +26,7 @@ display: $(TARGET)
 debug: $(TARGET)
 
 
-OBJECTS = main.cpp videoIO.cpp SerialRotoscope.cpp OMPRotoscope.cpp timer.cpp Utils.cpp
+OBJECTS = main.cpp videoIO.cpp SerialRotoscope.cpp Utils.cpp
 HEADERS = videoIO.h
 
 #%.o: %.c $(HEADERS)

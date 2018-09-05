@@ -29,7 +29,7 @@ all: default
 display: $(TARGET)
 
 
-OBJECTS = water_color.cu main.cpp
+OBJECTS = Roto.cu main.cpp
 
 
 #%.o: %.c $(HEADERS)

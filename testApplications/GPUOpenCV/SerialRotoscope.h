@@ -7,7 +7,7 @@
 #include <cmath>
 
 #include "videoIO.h"
-
+#include "timer.h"
 
 using namespace videoIO;
 using namespace cv;
