@@ -46,23 +46,26 @@ __global__ void diff_and_convert_kernel(unsigned char *img,
             int indx = tiy * width + tix;
             int indx3 = indx * 3;
 
-            b = abs(img[indx3] - back[indx3]);
-            g = abs(img[indx3 + 1] - back[indx3 + 1]);
-            r = abs(img[indx3 + 2] - back[indx3 + 2]);
-            o_diff_gray[indx] = b * 0.1141 + g * 0.587 + r * 0.2989;
+            b = (unsigned char)abs(img[indx3] - back[indx3]);
+            g = (unsigned char)abs(img[indx3 + 1] - back[indx3 + 1]);
+            r = (unsigned char)abs(img[indx3 + 2] - back[indx3 + 2]);
+
+            o_diff_gray[indx] = (unsigned char)(b * 0.1141 + g * 0.587 + r * 0.2989);
+            o_diff[indx3]   = b;
+            o_diff[indx3+1] = g;
+            o_diff[indx3+2] = r;
       }
 }
 
-void diff_and_convert(unsigned char *img,
-                      unsigned char *back,
-                      unsigned char*o_diff,
-                      unsigned char *o_diff_gray,
+void diff_and_convert(unsigned char *h_img,
+                      unsigned char *h_back,
+                      unsigned char *h_diff,
+                      unsigned char *h_diff_gray,
                       int width,
-                      int height)
+                      int height,
+                      size_t _channel_size)
 {
       unsigned char *d_img, *d_back, *d_diff, *d_diff_gray;
-
-      size_t _channel_size = sizeof(unsigned char) * width * height;
 
       gpuErrchk( cudaMalloc(&d_img,  _channel_size * 3) );
       gpuErrchk( cudaMalloc(&d_back, _channel_size * 3) );
@@ -70,16 +73,16 @@ void diff_and_convert(unsigned char *img,
 
       gpuErrchk( cudaMalloc(&d_diff_gray, _channel_size) );
 
-      gpuErrchk( cudaMemcpy(d_img,  img,  _channel_size * 3, cudaMemcpyHostToDevice) );
-      gpuErrchk( cudaMemcpy(d_back, back, _channel_size * 3, cudaMemcpyHostToDevice) );
+      gpuErrchk( cudaMemcpy(d_img,  h_img,  _channel_size * 3, cudaMemcpyHostToDevice) );
+      gpuErrchk( cudaMemcpy(d_back, h_back, _channel_size * 3, cudaMemcpyHostToDevice) );
 
       dim3 block(32,16);
       dim3 grid(std::ceil((float)width / block.x), std::ceil((float)height / block.y));
 
       diff_and_convert_kernel<<<grid, block>>>(d_img, d_back, d_diff, d_diff_gray, width, height);
 
-      //gpuErrchk( cudaMemcpy(o_diff,      d_diff,      _channel_size * 3, cudaMemcpyDeviceToHost) );
-      //gpuErrchk( cudaMemcpy(o_diff_gray, d_diff_gray, _channel_size    , cudaMemcpyDeviceToHost) );
+      gpuErrchk( cudaMemcpy(h_diff,      d_diff,      _channel_size * 3, cudaMemcpyDeviceToHost) );
+      gpuErrchk( cudaMemcpy(h_diff_gray, d_diff_gray, _channel_size    , cudaMemcpyDeviceToHost) );
 
       gpuErrchk( cudaFree(d_img) );
       gpuErrchk( cudaFree(d_back) );

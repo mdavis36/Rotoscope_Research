@@ -9,5 +9,6 @@ void diff_and_convert(unsigned char *img,
                       unsigned char *o_diff,
                       unsigned char *o_diff_gray,
                       int width,
-                      int height);
+                      int height,
+                      size_t _channel_size);
 #endif
