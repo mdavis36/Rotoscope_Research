@@ -2,7 +2,6 @@
 
 #include "Roto.h"
 
-
 int main()
 {
       int num_rows, num_cols;
@@ -35,7 +34,6 @@ int main()
                        h_image.cols,
                        h_image.rows,
                        _channel_size);
-
 
       // -----------------------------------------------------------------------
       //

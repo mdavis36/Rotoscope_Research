@@ -16,7 +16,7 @@
 
 TARGET = OpenCVGPUTest.exe
 LIBS = `pkg-config --cflags --libs opencv`
-CC = nvcc
+CC = nvcc -lineinfo
 CFLAGS = -std=c++11 -Xcompiler -fopenmp
 
 
