@@ -164,7 +164,7 @@ __global__ void compute_eigenvalues_kernel(float *deriv_x,
 
             int half_width = (CONVOL_WIDTH - 1) / 2;
 
-            float G_x, G_y;
+            float G_x, G_y; //float G_xy
             float G_x2 = 0.0f;
             float G_y2 = 0.0f;
             float l_1, l_2;
@@ -186,6 +186,7 @@ __global__ void compute_eigenvalues_kernel(float *deriv_x,
 
                         G_x2 += G_x * G_x;
                         G_y2 += G_y * G_y;
+                        //G_xy+=G_x*G_y;
                   }
             }
 
@@ -196,6 +197,7 @@ __global__ void compute_eigenvalues_kernel(float *deriv_x,
             l_2 = (D/4) - D + (4 * G_x2 * G_y2);
 
             cornerness[indx] = l_1 * l_2 - K_VAL * (l_1 + l_2) * (l_1 + l_2);
+            //cornerness[indx] = G_x2*G_y2 - G_xy*G_xy - 0.04(G_x2+G_y2)^2;
             //cornerness[indx] = min(l_1, l_2);
             indexes[indx] = indx;
       }
