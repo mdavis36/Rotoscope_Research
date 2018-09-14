@@ -10,8 +10,8 @@
 using namespace std;
 //#include "timer.h"
 
-#define MASK_WIDTH 31
-#define CONVOL_WIDTH 5
+#define MASK_WIDTH 7
+#define CONVOL_WIDTH 3
 #define K_VAL 0.04
 
 

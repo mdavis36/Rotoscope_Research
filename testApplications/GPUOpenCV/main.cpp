@@ -17,7 +17,7 @@ int main()
       double qualityLevel 	= 0.000001;
       double minDistance 	= 1;
       int blockSize 		= 3;
-      bool useHarrisDetector 	= false;
+      bool useHarrisDetector 	= true;
       double k 		      = 0.04;
       //
       // if (cv::cuda::getCudaEnabledDeviceCount() != 0)
@@ -43,8 +43,8 @@ int main()
 
             std::vector<cv::Point2f>	corners;
 
-            h_image      = cv::imread("img_1440.png",cv::IMREAD_COLOR);
-            h_image_back = cv::imread("back_1440.png",cv::IMREAD_COLOR);
+            h_image      = cv::imread("img.png",cv::IMREAD_COLOR);
+            h_image_back = cv::imread("back.png",cv::IMREAD_COLOR);
 
             t2 = getProcessTime();
 
@@ -64,11 +64,15 @@ int main()
             goodFeaturesToTrack(h_diff_image_gray, corners, maxCorners, qualityLevel, minDistance, cv::Mat(), blockSize, useHarrisDetector, k);
 
             cv::Mat marker_image = cv::Mat::zeros(h_image.size(), CV_32SC1);
+            cv::Mat corner_image = cv::Mat::zeros(h_image.size(), CV_8UC1);
 
             for (int i = 0; i < corners.size(); i++)
             {
                   marker_image.at<int>(cv::Point(int(corners[i].x * factor), int(corners[i].y * factor))) = i+1;
+                  corner_image.at<uchar>(cv::Point(int(corners[i].x * factor), int(corners[i].y * factor))) = 255;
             }
+            cv::namedWindow("Output", cv::WINDOW_AUTOSIZE ); cv::imshow("Markers", marker_image);
+            cv::namedWindow("Output", cv::WINDOW_AUTOSIZE ); cv::imshow("Markers", corner_image);
             watershed(h_diff_image, marker_image);
 
             // -- End of CPU computation --

@@ -164,10 +164,10 @@ __global__ void compute_eigenvalues_kernel(float *deriv_x,
 
             int half_width = (CONVOL_WIDTH - 1) / 2;
 
-            float G_x, G_y; //float G_xy
+            float G_x, G_y;
+            float G_xy;
             float G_x2 = 0.0f;
             float G_y2 = 0.0f;
-            float l_1, l_2;
             int con_indx;
 
             for (int x = -half_width; x <= half_width; x++)
@@ -186,18 +186,18 @@ __global__ void compute_eigenvalues_kernel(float *deriv_x,
 
                         G_x2 += G_x * G_x;
                         G_y2 += G_y * G_y;
-                        //G_xy+=G_x*G_y;
+                        G_xy += G_x * G_y;
                   }
             }
 
-            float D = (G_x2 + G_y2);
-            D *= D;
+            // float D = (G_x2 + G_y2);
+            // D *= D;
+            //
+            // l_1 = (D/4) + D + (4 * G_x2 * G_y2);
+            // l_2 = (D/4) - D + (4 * G_x2 * G_y2);
 
-            l_1 = (D/4) + D + (4 * G_x2 * G_y2);
-            l_2 = (D/4) - D + (4 * G_x2 * G_y2);
-
-            cornerness[indx] = l_1 * l_2 - K_VAL * (l_1 + l_2) * (l_1 + l_2);
-            //cornerness[indx] = G_x2*G_y2 - G_xy*G_xy - 0.04(G_x2+G_y2)^2;
+            //cornerness[indx] = l_1 * l_2 - K_VAL * (l_1 + l_2) * (l_1 + l_2);
+            cornerness[indx] = G_x2 * G_y2 - G_xy * G_xy - 0.04 * (G_x2+G_y2) * (G_x2+G_y2);
             //cornerness[indx] = min(l_1, l_2);
             indexes[indx] = indx;
       }
@@ -280,9 +280,6 @@ void diff_and_convert(unsigned char *h_img,
       gpuErrchk( cudaMemcpy(d_gaus_mask, gaus, MASK_WIDTH * sizeof(float), cudaMemcpyHostToDevice) );
       gpuErrchk( cudaMemcpy(d_gaus_deriv_mask, gaus_d, MASK_WIDTH * sizeof(float), cudaMemcpyHostToDevice) );
 
-      //gpuErrchk( cudaMemcpyToSymbol(c_gaus_mask,       &gaus,   MASK_WIDTH * sizeof(float)) );
-      //gpuErrchk( cudaMemcpyToSymbol(c_gaus_deriv_mask, &gaus_d, MASK_WIDTH * sizeof(float)) );
-
       dim3 block(32,16);
       dim3 grid(std::ceil((float)width / block.x), std::ceil((float)height / block.y));
 
@@ -294,50 +291,60 @@ void diff_and_convert(unsigned char *h_img,
       thrust::device_ptr<float> t_cornerness = thrust::device_pointer_cast(d_cornerness);
       thrust::device_ptr<float> t_indexes    = thrust::device_pointer_cast(d_indexes);
       thrust::sort_by_key(t_cornerness, t_cornerness + (width * height), t_indexes, thrust::greater<float>());
-      //thrust::sort_by_key(thrust::device, t_cornerness, t_cornerness + (width * height), t_indexes, thrust::greater<int>());
-
 
       float *h_cornerness, *h_indexes;
       h_cornerness = (float *)malloc(sizeof(float) * width * height);
       h_indexes = (float *)malloc(sizeof(float) * width * height);
       gpuErrchk( cudaMemcpy(h_cornerness, d_cornerness, sizeof(float) * width * height, cudaMemcpyDeviceToHost) );
       gpuErrchk( cudaMemcpy(h_indexes, d_indexes, sizeof(float) * width * height, cudaMemcpyDeviceToHost) );
-
-      //thrust::sort_by_key(thrust::host, h_cornerness, h_cornerness + (width * height), h_indexes, thrust::greater<float>());
-
-      t_2 = getProcessTime();
-
       gpuErrchk( cudaMemcpy(h_diff,      d_diff,      _channel_size * 3, cudaMemcpyDeviceToHost) );
-      //gpuErrchk( cudaMemcpy(h_diff_gray, d_diff_gray, _channel_size    , cudaMemcpyDeviceToHost) );
 
-      for(int i = 0; i < 1000; i++)
+
+      // -----------------------------------------------------------------------
+      //                      Perform Best Corners
+      // -----------------------------------------------------------------------
+
+      int *best_corners;
+      int num_corners = 1000;
+      best_corners = (int *)malloc(sizeof(int) * num_corners);
+
+      bool close;
+      int count = 1;
+      int curr_indx = 1;
+      //float quality_level = 0.00001;
+      best_corners[0] = (int)h_indexes[0];
+      //int quality_threshold = h_cornerness[0] * quality_level;
+
+      while(count < num_corners && curr_indx < width * height)
       {
-            h_diff_gray[(int)h_indexes[i]] = 255;
-            std::cout << h_cornerness[i] << std::endl;
+            close = false;
+            for (int i = 0; i < count; i++)
+            {
+                  if (checkInDist(best_corners[i], (int)h_indexes[curr_indx], 5, width)) close = true;
+            }
 
+            if (!close)// && h_cornerness[curr_indx] >= quality_threshold)
+            {
+                  best_corners[count] = (int)h_indexes[curr_indx];
+                  count++;
+            }
+
+            curr_indx++;
       }
 
-      // unsigned char *h_smooth_x, *h_smooth_y;
-      // h_smooth_x = (unsigned char *)malloc(_channel_size);
-      // h_smooth_y = (unsigned char *)malloc(_channel_size);
-      // gpuErrchk( cudaMemcpy(h_smooth_x, d_smooth_x, _channel_size, cudaMemcpyDeviceToHost) );
-      // gpuErrchk( cudaMemcpy(h_smooth_y, d_smooth_y, _channel_size, cudaMemcpyDeviceToHost) );
-      //
-      // for (int  i = 0; i < 50; i ++)
-      // {
-      //       std::cout << (int)h_smooth_x[i] << ", " << (int)h_smooth_y[i] << std::endl;
-      // }
-      //
-      // float *h_deriv_x, *h_deriv_y;
-      // h_deriv_x = (float *)malloc(sizeof(float) * width * height);
-      // h_deriv_y = (float *)malloc(sizeof(float) * width * height);
-      // gpuErrchk( cudaMemcpy(h_deriv_x, d_deriv_x, sizeof(float) * width * height, cudaMemcpyDeviceToHost) );
-      // gpuErrchk( cudaMemcpy(h_deriv_y, d_deriv_y, sizeof(float) * width * height, cudaMemcpyDeviceToHost) );
-      //
-      // for (int  i = 0; i < 50; i ++)
-      // {
-      //       std::cout << h_deriv_x[i] << ", " << h_deriv_y[i] << std::endl;
-      // }
+      // -----------------------------------------------------------------------
+
+
+
+      t_2 = getProcessTime();
+      std::cout << count << std::endl;
+
+      for (int i = 0; i < count; i++)
+      {
+            h_img[(int)best_corners[i]*3] = 255;
+            h_img[(int)best_corners[i]*3+1] = 255;
+            h_img[(int)best_corners[i]*3+2] = 255;
+      }
 
       gpuErrchk( cudaFree(d_img) );
       gpuErrchk( cudaFree(d_back) );
