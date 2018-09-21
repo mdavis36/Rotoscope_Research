@@ -93,9 +93,9 @@ int SerialRotoscope::runRotoscope(int argc, char *argv[])
              * TODO implement openCV class goodFeauturesto track_GPU
              * https://docs.opencv.org/2.4/modules/gpu/doc/video.html
              */
-
+            //t0 = getProcessTime();
             goodFeaturesToTrack(diff_image_gray_ds, corners, maxCorners, qualityLevel, minDistance, Mat(), blockSize, useHarrisDetector, k);
-
+            //t1 = getProcessTime();
 
 
             GetCenter(corners, center, factor); // get centroind
@@ -132,11 +132,11 @@ int SerialRotoscope::runRotoscope(int argc, char *argv[])
 
 
             output.write(out);
-            t1 = getProcessTime();
 
-            std::cout << "CPU Frame time : " << t1 - t0 << " seconds" << std::endl;
-            namedWindow("Out Image", WINDOW_AUTOSIZE ); imshow("Out Image", out);
-            waitKey(0);
+
+            //std::cout << "CPU Frame time : " << t1 - t0 << " seconds" << std::endl;
+            //namedWindow("Out Image", WINDOW_AUTOSIZE ); imshow("Out Image", out);
+            //waitKey(0);
       }
 
 
